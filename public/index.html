@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Katana-Famous Sync</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
+    .status-running { background: #fef3c7; color: #92400e; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-failed { background: #fee2e2; color: #991b1b; }
+    .status-pending { background: #e5e7eb; color: #374151; }
+    .status-adjusted, .status-created { background: #dbeafe; color: #1e40af; }
+    .status-matched, .status-skipped_existing { background: #f3f4f6; color: #6b7280; }
+    .status-increase { background: #dcfce7; color: #166534; }
+    .status-decrease { background: #fef9c3; color: #854d0e; }
+    .status-match { background: #f3f4f6; color: #6b7280; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <nav class="bg-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <h1 class="text-xl font-bold text-gray-800">Katana-Famous Sync</h1>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 mb-6">
+      <nav class="flex space-x-8">
+        <button onclick="showTab('schedules')" id="tab-schedules" class="tab-active py-2 px-1 font-medium">
+          Schedules
+        </button>
+        <button onclick="showTab('runs')" id="tab-runs" class="py-2 px-1 font-medium text-gray-500 hover:text-gray-700">
+          Sync Runs
+        </button>
+        <button onclick="showTab('reconciliation')" id="tab-reconciliation" class="py-2 px-1 font-medium text-gray-500 hover:text-gray-700">
+          Reconciliation Data
+        </button>
+        <button onclick="showTab('manual')" id="tab-manual" class="py-2 px-1 font-medium text-gray-500 hover:text-gray-700">
+          Manual Sync
+        </button>
+      </nav>
+    </div>
+
+    <!-- Schedules Tab -->
+    <div id="content-schedules">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Scheduled Syncs</h2>
+        <button onclick="showScheduleModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          + New Schedule
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Schedule</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="schedules-table" class="bg-white divide-y divide-gray-200">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sync Runs Tab -->
+    <div id="content-runs" class="hidden">
+      <h2 class="text-lg font-semibold mb-4">Recent Sync Runs</h2>
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Started</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Processed</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Adjusted</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="runs-table" class="bg-white divide-y divide-gray-200">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Reconciliation Tab -->
+    <div id="content-reconciliation" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Products from ERP (Reconciliation Data)</h2>
+        <div class="flex gap-2">
+          <select id="recon-filter" onchange="filterReconciliation()" class="border rounded px-3 py-1">
+            <option value="">All Statuses</option>
+            <option value="adjusted">Adjusted</option>
+            <option value="created">Created</option>
+            <option value="matched">Matched</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="skipped_existing">Skipped (Existing)</option>
+            <option value="skipped_duplicate">Skipped (Duplicate)</option>
+          </select>
+          <button onclick="loadReconciliation()" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">Refresh</button>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div id="recon-stats" class="grid grid-cols-4 gap-4 mb-6">
+      </div>
+
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Famous Qty</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Katana Qty</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Adjustment</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+            </tr>
+          </thead>
+          <tbody id="reconciliation-table" class="bg-white divide-y divide-gray-200">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Manual Sync Tab -->
+    <div id="content-manual" class="hidden">
+      <h2 class="text-lg font-semibold mb-4">Run Manual Sync</h2>
+      <div class="grid grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="font-medium mb-4">Inventory Sync</h3>
+          <p class="text-gray-600 text-sm mb-4">Compare and synchronize inventory quantities between Famous ERP and Katana.</p>
+          <div class="flex gap-2 mb-4">
+            <label class="flex items-center">
+              <input type="checkbox" id="inv-dry-run" class="mr-2">
+              <span class="text-sm">Dry Run</span>
+            </label>
+          </div>
+          <button onclick="runSync('inventory')" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+            Run Inventory Sync
+          </button>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="font-medium mb-4">Products Sync</h3>
+          <p class="text-gray-600 text-sm mb-4">Import new products from Famous ERP to Katana.</p>
+          <div class="flex gap-2 mb-4">
+            <label class="flex items-center">
+              <input type="checkbox" id="prod-dry-run" class="mr-2">
+              <span class="text-sm">Dry Run</span>
+            </label>
+          </div>
+          <button onclick="runSync('products')" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+            Run Products Sync
+          </button>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="font-medium mb-4">Materials Sync</h3>
+          <p class="text-gray-600 text-sm mb-4">Import new materials from Famous ERP to Katana.</p>
+          <div class="flex gap-2 mb-4">
+            <label class="flex items-center">
+              <input type="checkbox" id="mat-dry-run" class="mr-2">
+              <span class="text-sm">Dry Run</span>
+            </label>
+          </div>
+          <button onclick="runSync('materials')" class="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700">
+            Run Materials Sync
+          </button>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="font-medium mb-4">Manufacturing Orders</h3>
+          <p class="text-gray-600 text-sm mb-4">Create manufacturing orders from recent repack outputs.</p>
+          <div class="flex gap-2 mb-4">
+            <label class="flex items-center">
+              <input type="checkbox" id="mfg-dry-run" class="mr-2">
+              <span class="text-sm">Dry Run</span>
+            </label>
+          </div>
+          <button onclick="runSync('manufacturing')" class="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700">
+            Run Manufacturing Sync
+          </button>
+        </div>
+      </div>
+
+      <div id="sync-result" class="mt-6 hidden">
+        <h3 class="font-medium mb-2">Sync Result</h3>
+        <pre class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-auto max-h-96"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Modal -->
+  <div id="schedule-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-lg font-semibold mb-4" id="modal-title">New Schedule</h3>
+      <form id="schedule-form">
+        <input type="hidden" id="schedule-id">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input type="text" id="schedule-name" required class="w-full border rounded px-3 py-2" placeholder="Daily Inventory Sync">
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Sync Type</label>
+          <select id="schedule-type" required class="w-full border rounded px-3 py-2">
+            <option value="inventory">Inventory</option>
+            <option value="products">Products</option>
+            <option value="materials">Materials</option>
+            <option value="manufacturing">Manufacturing Orders</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cron Expression</label>
+          <input type="text" id="schedule-cron" required class="w-full border rounded px-3 py-2" placeholder="0 6 * * *">
+          <p class="text-xs text-gray-500 mt-1">Examples: 0 6 * * * (daily at 6am), */30 * * * * (every 30 mins)</p>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tolerance</label>
+          <input type="number" id="schedule-tolerance" step="0.01" value="0" class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4 flex gap-4">
+          <label class="flex items-center">
+            <input type="checkbox" id="schedule-enabled" checked class="mr-2">
+            <span class="text-sm">Enabled</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="schedule-dryrun" class="mr-2">
+            <span class="text-sm">Dry Run</span>
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Save</button>
+          <button type="button" onclick="hideScheduleModal()" class="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Items Modal -->
+  <div id="items-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Sync Run Items</h3>
+        <button onclick="hideItemsModal()" class="text-gray-500 hover:text-gray-700">&times;</button>
+      </div>
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Famous</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Katana</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Adjustment</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+          </tr>
+        </thead>
+        <tbody id="items-table" class="bg-white divide-y divide-gray-200">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let allReconciliationItems = [];
+
+    function showTab(tab) {
+      document.querySelectorAll('[id^="content-"]').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('[id^="tab-"]').forEach(el => {
+        el.classList.remove('tab-active');
+        el.classList.add('text-gray-500');
+      });
+
+      document.getElementById(`content-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).classList.add('tab-active');
+      document.getElementById(`tab-${tab}`).classList.remove('text-gray-500');
+
+      if (tab === 'schedules') loadSchedules();
+      if (tab === 'runs') loadRuns();
+      if (tab === 'reconciliation') loadReconciliation();
+    }
+
+    async function loadSchedules() {
+      const res = await fetch('/api/schedules');
+      const schedules = await res.json();
+
+      const tbody = document.getElementById('schedules-table');
+      tbody.innerHTML = schedules.map(s => `
+        <tr>
+          <td class="px-6 py-4">${s.name}</td>
+          <td class="px-6 py-4">${s.sync_type}</td>
+          <td class="px-6 py-4 font-mono text-sm">${s.cron_expression}</td>
+          <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded text-xs ${s.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}">
+              ${s.enabled ? 'Enabled' : 'Disabled'}
+            </span>
+            ${s.dry_run ? '<span class="ml-1 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">Dry</span>' : ''}
+          </td>
+          <td class="px-6 py-4">
+            <button onclick="editSchedule(${s.id})" class="text-blue-600 hover:text-blue-800 mr-2">Edit</button>
+            <button onclick="toggleSchedule(${s.id}, ${!s.enabled})" class="text-gray-600 hover:text-gray-800 mr-2">
+              ${s.enabled ? 'Disable' : 'Enable'}
+            </button>
+            <button onclick="deleteSchedule(${s.id})" class="text-red-600 hover:text-red-800">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadRuns() {
+      const res = await fetch('/api/runs?limit=50');
+      const runs = await res.json();
+
+      const tbody = document.getElementById('runs-table');
+      tbody.innerHTML = runs.map(r => `
+        <tr>
+          <td class="px-6 py-4">${r.id}</td>
+          <td class="px-6 py-4">${r.sync_type}</td>
+          <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded text-xs status-${r.status}">${r.status}</span>
+          </td>
+          <td class="px-6 py-4 text-sm">${new Date(r.started_at).toLocaleString()}</td>
+          <td class="px-6 py-4">${r.items_processed}</td>
+          <td class="px-6 py-4">${r.items_adjusted}</td>
+          <td class="px-6 py-4">
+            <button onclick="viewRunItems(${r.id})" class="text-blue-600 hover:text-blue-800">View Items</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadReconciliation() {
+      const [itemsRes, statsRes] = await Promise.all([
+        fetch('/api/reconciliation?limit=500'),
+        fetch('/api/reconciliation/stats')
+      ]);
+
+      allReconciliationItems = await itemsRes.json();
+      const stats = await statsRes.json();
+
+      document.getElementById('recon-stats').innerHTML = `
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-2xl font-bold">${stats.total}</div>
+          <div class="text-sm text-gray-500">Total Items</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-2xl font-bold text-green-600">${stats.by_type.increase || 0}</div>
+          <div class="text-sm text-gray-500">Increases</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-2xl font-bold text-yellow-600">${stats.by_type.decrease || 0}</div>
+          <div class="text-sm text-gray-500">Decreases</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-2xl font-bold text-gray-600">${stats.by_type.match || 0}</div>
+          <div class="text-sm text-gray-500">Matched</div>
+        </div>
+      `;
+
+      filterReconciliation();
+    }
+
+    function filterReconciliation() {
+      const filter = document.getElementById('recon-filter').value;
+      const items = filter
+        ? allReconciliationItems.filter(i => i.status === filter)
+        : allReconciliationItems;
+
+      const tbody = document.getElementById('reconciliation-table');
+      tbody.innerHTML = items.slice(0, 200).map(i => `
+        <tr>
+          <td class="px-6 py-4 font-mono text-sm">${i.sku}</td>
+          <td class="px-6 py-4 text-sm">${i.product_description || '-'}</td>
+          <td class="px-6 py-4">${i.famous_qty != null ? i.famous_qty.toFixed(2) : '-'}</td>
+          <td class="px-6 py-4">${i.katana_qty != null ? i.katana_qty.toFixed(2) : '-'}</td>
+          <td class="px-6 py-4">
+            ${i.adjustment_needed != null ? `
+              <span class="px-2 py-1 rounded text-xs status-${i.adjustment_type}">
+                ${i.adjustment_needed > 0 ? '+' : ''}${i.adjustment_needed.toFixed(2)}
+              </span>
+            ` : '-'}
+          </td>
+          <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded text-xs status-${i.status}">${i.status}</span>
+          </td>
+          <td class="px-6 py-4 text-sm">${i.source_system || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function viewRunItems(runId) {
+      const res = await fetch(`/api/runs/${runId}/items`);
+      const items = await res.json();
+
+      const tbody = document.getElementById('items-table');
+      tbody.innerHTML = items.map(i => `
+        <tr>
+          <td class="px-4 py-2 font-mono text-sm">${i.sku}</td>
+          <td class="px-4 py-2 text-sm">${i.product_description || '-'}</td>
+          <td class="px-4 py-2">${i.famous_qty != null ? i.famous_qty.toFixed(2) : '-'}</td>
+          <td class="px-4 py-2">${i.katana_qty != null ? i.katana_qty.toFixed(2) : '-'}</td>
+          <td class="px-4 py-2">
+            ${i.adjustment_needed != null ? `
+              <span class="px-2 py-1 rounded text-xs status-${i.adjustment_type}">
+                ${i.adjustment_needed > 0 ? '+' : ''}${i.adjustment_needed.toFixed(2)}
+              </span>
+            ` : '-'}
+          </td>
+          <td class="px-4 py-2">
+            <span class="px-2 py-1 rounded text-xs status-${i.status}">${i.status}</span>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('items-modal').classList.remove('hidden');
+    }
+
+    function hideItemsModal() {
+      document.getElementById('items-modal').classList.add('hidden');
+    }
+
+    function showScheduleModal(schedule = null) {
+      document.getElementById('modal-title').textContent = schedule ? 'Edit Schedule' : 'New Schedule';
+      document.getElementById('schedule-id').value = schedule?.id || '';
+      document.getElementById('schedule-name').value = schedule?.name || '';
+      document.getElementById('schedule-type').value = schedule?.sync_type || 'inventory';
+      document.getElementById('schedule-cron').value = schedule?.cron_expression || '';
+      document.getElementById('schedule-tolerance').value = schedule?.tolerance || 0;
+      document.getElementById('schedule-enabled').checked = schedule?.enabled ?? true;
+      document.getElementById('schedule-dryrun').checked = schedule?.dry_run || false;
+      document.getElementById('schedule-modal').classList.remove('hidden');
+    }
+
+    function hideScheduleModal() {
+      document.getElementById('schedule-modal').classList.add('hidden');
+    }
+
+    async function editSchedule(id) {
+      const res = await fetch(`/api/schedules/${id}`);
+      const schedule = await res.json();
+      showScheduleModal(schedule);
+    }
+
+    async function toggleSchedule(id, enabled) {
+      await fetch(`/api/schedules/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      loadSchedules();
+    }
+
+    async function deleteSchedule(id) {
+      if (!confirm('Delete this schedule?')) return;
+      await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+      loadSchedules();
+    }
+
+    document.getElementById('schedule-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const id = document.getElementById('schedule-id').value;
+      const data = {
+        name: document.getElementById('schedule-name').value,
+        sync_type: document.getElementById('schedule-type').value,
+        cron_expression: document.getElementById('schedule-cron').value,
+        tolerance: parseFloat(document.getElementById('schedule-tolerance').value),
+        enabled: document.getElementById('schedule-enabled').checked,
+        dry_run: document.getElementById('schedule-dryrun').checked
+      };
+
+      if (id) {
+        await fetch(`/api/schedules/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      } else {
+        await fetch('/api/schedules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      }
+
+      hideScheduleModal();
+      loadSchedules();
+    });
+
+    async function runSync(type) {
+      const dryRunId = `${type === 'inventory' ? 'inv' : type === 'products' ? 'prod' : type === 'materials' ? 'mat' : 'mfg'}-dry-run`;
+      const dryRun = document.getElementById(dryRunId).checked;
+
+      const resultDiv = document.getElementById('sync-result');
+      resultDiv.classList.remove('hidden');
+      resultDiv.innerHTML = '<h3 class="font-medium mb-2">Sync Result</h3><pre class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-auto max-h-96">Running sync...</pre>';
+
+      try {
+        const res = await fetch(`/api/sync/${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dry_run: dryRun })
+        });
+
+        const result = await res.json();
+
+        let html = `<h3 class="font-medium mb-2">Sync Result</h3>`;
+        html += `<div class="mb-4 text-sm"><span class="font-medium">Status:</span> ${result.status} | <span class="font-medium">Processed:</span> ${result.itemsProcessed} | <span class="font-medium">Adjusted:</span> ${result.itemsAdjusted}</div>`;
+
+        if (result.issuePreview && result.issuePreview.length > 0) {
+          html += `<h4 class="font-medium mb-2">Materials to Relieve from Famous (${result.issuePreview.length} items)</h4>`;
+          html += `<div class="overflow-auto max-h-64 mb-4"><table class="w-full text-sm border-collapse">`;
+          html += `<thead class="bg-gray-100 sticky top-0"><tr><th class="border px-3 py-1 text-left">Material SKU</th><th class="border px-3 py-1 text-left">Name</th><th class="border px-3 py-1 text-right">Qty to Relieve</th></tr></thead><tbody>`;
+          for (const line of result.issuePreview) {
+            html += `<tr><td class="border px-3 py-1">${line.sku}</td><td class="border px-3 py-1">${line.name || ''}</td><td class="border px-3 py-1 text-right">${line.quantity}</td></tr>`;
+          }
+          html += `</tbody></table></div>`;
+        }
+
+        if (result.items && result.items.length > 0) {
+          html += `<h4 class="font-medium mb-2">Manufacturing Orders (${result.items.length} items)</h4>`;
+          html += `<div class="overflow-auto max-h-64 mb-4"><table class="w-full text-sm border-collapse">`;
+          html += `<thead class="bg-gray-100 sticky top-0"><tr><th class="border px-3 py-1 text-left">SKU</th><th class="border px-3 py-1 text-left">Description</th><th class="border px-3 py-1 text-right">Qty</th><th class="border px-3 py-1 text-left">Status</th></tr></thead><tbody>`;
+          for (const item of result.items) {
+            const statusColor = item.status === 'created' ? 'text-green-600' : item.status === 'pending' ? 'text-yellow-600' : item.status === 'failed' ? 'text-red-600' : 'text-gray-600';
+            html += `<tr><td class="border px-3 py-1">${item.sku}</td><td class="border px-3 py-1">${item.product_description || ''}</td><td class="border px-3 py-1 text-right">${item.famous_qty || ''}</td><td class="border px-3 py-1 ${statusColor}">${item.status}</td></tr>`;
+          }
+          html += `</tbody></table></div>`;
+        }
+
+        html += `<details class="mt-2"><summary class="text-sm text-gray-500 cursor-pointer">Raw JSON</summary><pre class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-auto max-h-64 mt-2">${JSON.stringify(result, null, 2)}</pre></details>`;
+
+        resultDiv.innerHTML = html;
+      } catch (error) {
+        resultDiv.querySelector('pre').textContent = `Error: ${error.message}`;
+      }
+    }
+
+    // Initial load
+    loadSchedules();
+  </script>
+</body>
+</html>
