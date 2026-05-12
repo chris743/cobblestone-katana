@@ -22,8 +22,8 @@ export const config = {
     company: 'COBBLESTONE FRUIT'
   },
   relay: {
-    baseUrl: process.env.RELAY_URL || 'http://192.168.128.233:9000',
-    token: process.env.RELAY_TOKEN || 'nGrg_J7D4tpkCPxTCu_fb2bdyFaRpBuL7d7tprQ8GuE'
+    baseUrl: 'http://192.168.128.233:9000',
+    token: 'nGrg_J7D4tpkCPxTCu_fb2bdyFaRpBuL7d7tprQ8GuE'
   },
   server: {
     port: parseInt(process.env.PORT || '3000', 10)

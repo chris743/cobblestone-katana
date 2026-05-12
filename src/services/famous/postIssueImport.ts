@@ -51,6 +51,10 @@ export async function postIssueImport(repacks: RepackOutput[]): Promise<{ succes
   }
 
   console.log(`Posting ${issueLines.length} issue lines to FAPI relay at ${config.relay.baseUrl}...`);
+  const tokenPreview = config.relay.token
+    ? `${config.relay.token.slice(0, 4)}…${config.relay.token.slice(-4)} (len=${config.relay.token.length})`
+    : '(empty)';
+  console.log(`Relay token in use: ${tokenPreview}`);
 
   let response: Response;
   try {
