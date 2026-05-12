@@ -21,6 +21,9 @@ export const config = {
     password: 'FAPI',
     company: 'COBBLESTONE FRUIT'
   },
+  relay: {
+    baseUrl: process.env.RELAY_URL || 'http://192.168.128.233:9000',
+  },
   server: {
     port: parseInt(process.env.PORT || '3000', 10)
   },
