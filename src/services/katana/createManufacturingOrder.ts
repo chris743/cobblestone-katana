@@ -27,7 +27,7 @@ export async function createManufacturingOrder(order: {
         body: JSON.stringify({
           status: 'NOT_STARTED',
           order_no: orderNo,
-          variant_id: order.variantId,
+          variant_id: Number(order.variantId),
           location_id: config.defaultLocationId,
           planned_quantity: order.quantity
         }),

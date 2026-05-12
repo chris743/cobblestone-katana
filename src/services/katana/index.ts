@@ -5,6 +5,7 @@ export { getProducts } from "./getProducts";
 export { createProduct } from "./createProduct";
 export { createMaterial } from "./createMaterial";
 export { createManufacturingOrder } from "./createManufacturingOrder";
+export { updateManufacturingOrder } from "./updateManufacturingOrder";
 export { getMaterialVariantMap } from "./getMaterialVariantMap";
 export { postStockAdjustment } from "./postStockAdjustment";
 export { getBomRows, getRecipeMap } from "./getRecipes";

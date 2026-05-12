@@ -10,7 +10,7 @@ export async function postStockAdjustment(adjustments: {
   const adjustmentNumber = `SYNC-${now.toISOString().replace(/[-:T]/g, '').slice(0, 14)}`;
 
   const rows = adjustments.map(adj => ({
-    variant_id: adj.variantId,
+    variant_id: Number(adj.variantId),
     quantity: adj.quantity,
     ...(adj.quantity > 0 && adj.costPerUnit ? { cost_per_unit: adj.costPerUnit } : {})
   }));

@@ -126,7 +126,12 @@ export async function runManufacturingSync(options: SyncOptions = {}): Promise<S
           quantity: entry.totalQty
         });
 
-        if (!result.success) console.log(`Failed: ${result.error}`);
+        if (!result.success) {
+          console.log(`Failed: ${result.error}`);
+        } else if (result.id) {
+          const done = await katana.updateManufacturingOrder(result.id, { status: 'DONE' });
+          if (!done.success) console.log(`Failed to mark MO ${result.id} DONE: ${done.error}`);
+        }
 
         reconciliationItems.push({
           sync_run_id: runId,
