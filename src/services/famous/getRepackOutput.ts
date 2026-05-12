@@ -36,7 +36,7 @@ export async function getRepackOutputs(daysBack = 1): Promise<RepackOutput[]> {
   FROM [DM03].[rpt].[vw_IC_REPACKING_OutputByRun] r
   JOIN [DM03].[dbo].[VW_PRODUCTS] p ON p.ProductIdx = r.ProductIDX
   WHERE CAST(r.RunDate AS DATE) = CAST((GETDATE() - ${daysBack}) AS DATE)
-    AND p.Method != 'BIN' AND p.commodity = 'MINNEOLA'
+    AND p.Method != 'BIN'
   `);
 
   return result.recordset.map((row: RepackRow) => ({
