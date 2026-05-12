@@ -57,6 +57,7 @@ export async function postIssueImport(repacks: RepackOutput[]): Promise<{ succes
     response = await fetch(`${config.relay.baseUrl}/famous/issue-import`, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${config.relay.token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ lines: issueLines }),
