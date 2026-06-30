@@ -45,7 +45,6 @@ export async function getProducts(): Promise<FamousProduct[]> {
     AND Method != 'BULK BIN'
     AND Method != 'BAGMAS MED'
     AND Method != 'BAGMAS LRG'
-    AND Method != 'ORIG CTN'
     AND Commodity NOT LIKE 'ORG%'
   ORDER BY Commodity, Method, Label
   `);
